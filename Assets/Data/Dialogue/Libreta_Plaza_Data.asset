@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9528ef4597f6b2d43b96195a7efd2ab4, type: 3}
+  m_Name: Libreta_Plaza_Data
+  m_EditorClassIdentifier: Assembly-CSharp::Unbreathe.Dialogue.DialogueData
+  sequenceTitle: Libreta en la Plaza
+  lines:
+  - speakerName: Libreta - Apunte Borroso
+    message: "\"Nos vemos en la Plaza a las 6.\"\n\n(La hora est\xE1 tachada repetidas
+      veces con fuerza...)"
+    voiceAudio: {fileID: 0}
+  - speakerName: Libreta - Nota apresurada
+    message: "\"La niebla baj\xF3 de golpe y el ruido de la calle desapareci\xF3
+      por completo. Me dejaron sola con este zumbido sordo en los o\xEDdos.\""
+    voiceAudio: {fileID: 0}
+  - speakerName: Libreta - Nota apresurada
+    message: "\"Si logras encontrar esto, no te quites los aud\xEDfonos. Afina el
+      o\xEDdo. Sintoniza m\xE1s all\xE1 del gris.\""
+    voiceAudio: {fileID: 0}
