@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: f502e1635166740c58236631ca7e0fe4
+TextScriptImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 18289
+  packageName: GalaxyBox 1.0
+  packageVersion: 1.0
+  assetPath: Assets/GalaxyBox1/instructions.txt
+  uploadId: 7225
