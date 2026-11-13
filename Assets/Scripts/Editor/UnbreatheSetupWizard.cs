@@ -50,6 +50,601 @@ namespace Unbreathe.EditorTools
             );
         }
 
+        [MenuItem("Unbreathe/Configurar Player 3D (Personaje@Getting Up)")]
+        public static void SetupPlayer3D()
+        {
+            Undo.IncrementCurrentGroup();
+            int undoGroup = Undo.GetCurrentGroup();
+
+            Debug.Log("<color=cyan>[Unbreathe Setup 3D] Iniciando configuración de Player 3D...</color>");
+
+            // 1. Buscar o crear el GameObject Player
+            GameObject playerObj = GameObject.Find("Player");
+            if (playerObj == null)
+            {
+                var pm3d = Object.FindFirstObjectByType<PlayerController3D>();
+                if (pm3d != null) playerObj = pm3d.gameObject;
+            }
+
+            if (playerObj == null)
+            {
+                var pm = Object.FindFirstObjectByType<PlayerMovementController>();
+                if (pm != null) playerObj = pm.gameObject;
+            }
+
+            if (playerObj == null)
+            {
+                playerObj = new GameObject("Player");
+                Undo.RegisterCreatedObjectUndo(playerObj, "Create Player GameObject");
+                Debug.Log("<color=green>[Unbreathe Setup 3D] Se creó el GameObject padre 'Player'.</color>");
+            }
+
+            Undo.RecordObject(playerObj, "Setup Player 3D");
+            playerObj.tag = "Player";
+
+            // 2. Buscar el modelo Personaje@Getting Up en la escena
+            GameObject modelObj = null;
+            foreach (var go in Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (go.name == "Personaje@Getting Up" || (go.name.Contains("Personaje") && go.name.Contains("Getting Up")))
+                {
+                    modelObj = go;
+                    break;
+                }
+            }
+
+            // Si no está en la escena, instanciar desde el prefab
+            if (modelObj == null)
+            {
+                string prefabPath = "Assets/Sprites/Personaje3D/Getting Up/up/Personaje@Getting Up.prefab";
+                GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                if (prefab != null)
+                {
+                    modelObj = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+                    Undo.RegisterCreatedObjectUndo(modelObj, "Instantiate Personaje@Getting Up");
+                    Debug.Log("<color=green>[Unbreathe Setup 3D] Se instanció el prefab 'Personaje@Getting Up'.</color>");
+                }
+            }
+
+            if (modelObj != null)
+            {
+                // Asegurar que sea hijo del Player
+                if (modelObj.transform.parent != playerObj.transform)
+                {
+                    Undo.SetTransformParent(modelObj.transform, playerObj.transform, "Parent Model to Player");
+                }
+
+                Undo.RecordObject(modelObj.transform, "Reset Model Local Transform");
+                modelObj.transform.localPosition = Vector3.zero;
+                modelObj.transform.localRotation = Quaternion.identity;
+                modelObj.transform.localScale = Vector3.one;
+                Debug.Log("<color=green>[Unbreathe Setup 3D] 'Personaje@Getting Up' ahora es hijo directo de 'Player' con posición local reseteada.</color>");
+            }
+            else
+            {
+                Debug.LogWarning("[Unbreathe Setup 3D] No se encontró 'Personaje@Getting Up' en la escena ni en Assets.");
+            }
+
+            // 3. Desactivar el GFX 2D anterior si existe como hijo
+            Transform oldGFX = playerObj.transform.Find("GFX");
+            if (oldGFX != null && oldGFX.gameObject != modelObj)
+            {
+                Undo.RecordObject(oldGFX.gameObject, "Deactivate old 2D GFX");
+                oldGFX.gameObject.SetActive(false);
+                Debug.Log("[Unbreathe Setup 3D] Se desactivó el objeto 2D 'GFX' anterior para dar prioridad al modelo 3D.");
+            }
+
+            // 4. Configurar CharacterController
+            CharacterController cc = playerObj.GetComponent<CharacterController>();
+            if (cc == null)
+            {
+                cc = Undo.AddComponent<CharacterController>(playerObj);
+            }
+
+            Undo.RecordObject(cc, "Configure CharacterController");
+            // Calcular dimensiones a partir del SkinnedMeshRenderer / Renderers del modelo
+            float calculatedHeight = 1.8f;
+            float calculatedRadius = 0.35f;
+
+            if (modelObj != null)
+            {
+                Renderer[] renderers = modelObj.GetComponentsInChildren<Renderer>();
+                if (renderers.Length > 0)
+                {
+                    Bounds b = renderers[0].bounds;
+                    for (int i = 1; i < renderers.Length; i++)
+                    {
+                        b.Encapsulate(renderers[i].bounds);
+                    }
+                    calculatedHeight = Mathf.Max(b.size.y, 1.7f);
+                    calculatedRadius = Mathf.Clamp(Mathf.Max(b.extents.x, b.extents.z) * 0.45f, 0.25f, 0.45f);
+                }
+            }
+
+            cc.height = calculatedHeight;
+            cc.radius = calculatedRadius;
+            cc.center = new Vector3(0f, calculatedHeight * 0.5f, 0f);
+            cc.skinWidth = 0.08f;
+            cc.stepOffset = 0.35f;
+            cc.slopeLimit = 45f;
+            cc.minMoveDistance = 0.001f;
+            Debug.Log($"<color=green>[Unbreathe Setup 3D] CharacterController configurado: Altura={cc.height:F2}, Radio={cc.radius:F2}, Centro Y={cc.center.y:F2}.</color>");
+
+            // 5. Configurar PlayerController3D
+            PlayerController3D pc3d = playerObj.GetComponent<PlayerController3D>();
+            if (pc3d == null)
+            {
+                pc3d = Undo.AddComponent<PlayerController3D>(playerObj);
+            }
+
+            Undo.RecordObject(pc3d, "Configure PlayerController3D");
+            SerializedObject so = new SerializedObject(pc3d);
+            var modelProp = so.FindProperty("characterModel");
+            if (modelProp != null && modelObj != null)
+            {
+                modelProp.objectReferenceValue = modelObj.transform;
+            }
+
+            var animProp = so.FindProperty("characterAnimator");
+            if (animProp != null && modelObj != null)
+            {
+                Animator anim = modelObj.GetComponent<Animator>();
+                if (anim == null) anim = modelObj.GetComponentInChildren<Animator>();
+                if (anim != null) animProp.objectReferenceValue = anim;
+            }
+
+            var camProp = so.FindProperty("referenceCamera");
+            if (camProp != null)
+            {
+                camProp.objectReferenceValue = Camera.main != null ? Camera.main : Object.FindFirstObjectByType<Camera>();
+            }
+            so.ApplyModifiedProperties();
+
+            // Desactivar el PlayerMovementController 2D legacy si existe
+            PlayerMovementController oldPmc = playerObj.GetComponent<PlayerMovementController>();
+            if (oldPmc != null)
+            {
+                Undo.RecordObject(oldPmc, "Disable Legacy 2D PlayerMovementController");
+                oldPmc.enabled = false;
+            }
+
+            // 6. Asegurar que CameraFollow siga a Player
+            SetupCamera();
+
+            // 7. Configurar automáticamente el Animator con Idle, Walk y parámetro Speed
+            SetupAnimatorTransitions();
+
+            // 8. Colocar Player en el suelo si hay suelo debajo
+            RaycastHit hit;
+            Vector3 rayStart = playerObj.transform.position + Vector3.up * 5f;
+            if (UnityEngine.Physics.Raycast(rayStart, Vector3.down, out hit, 20f))
+            {
+                playerObj.transform.position = hit.point + Vector3.up * 0.05f;
+            }
+
+            // Marcar escena como modificada para guardado
+            EditorSceneManager.MarkSceneDirty(playerObj.scene);
+
+            Undo.CollapseUndoOperations(undoGroup);
+
+            Debug.Log("<color=green>[Unbreathe Setup 3D] ¡Configuración de Player 3D completada con éxito!</color>");
+        }
+
+        [MenuItem("Unbreathe/Configurar Camara Orbital Cinemachine (FreeLook)")]
+        public static void SetupCinemachineFreeLookCamera()
+        {
+            Undo.IncrementCurrentGroup();
+            int undoGroup = Undo.GetCurrentGroup();
+
+            Debug.Log("<color=cyan>[Unbreathe Setup] Configurando Cámara Orbital FreeLook Cinemachine...</color>");
+
+            // 1. Obtener Player y Modelo
+            GameObject player = GameObject.Find("Player");
+            if (player == null)
+            {
+                Debug.LogWarning("[Unbreathe Setup] No se encontró el objeto 'Player'.");
+                return;
+            }
+
+            Transform model = player.transform.Find("Personaje@Getting Up");
+            if (model != null)
+            {
+                Undo.RecordObject(model, "Reset Model Position");
+                model.localPosition = Vector3.zero;
+
+                Animator anim = model.GetComponent<Animator>();
+                if (anim != null)
+                {
+                    Undo.RecordObject(anim, "Disable Apply Root Motion");
+                    anim.applyRootMotion = false;
+                }
+            }
+
+            // 2. Main Camera con CinemachineBrain
+            Camera mainCam = Camera.main != null ? Camera.main : Object.FindFirstObjectByType<Camera>();
+            if (mainCam != null)
+            {
+                var oldFollow = mainCam.GetComponent<Unbreathe.Cameras.CameraFollow>();
+                if (oldFollow != null)
+                {
+                    Undo.RecordObject(oldFollow, "Disable legacy CameraFollow");
+                    oldFollow.enabled = false;
+                }
+
+                var brain = mainCam.GetComponent<Unity.Cinemachine.CinemachineBrain>();
+                if (brain == null)
+                {
+                    brain = Undo.AddComponent<Unity.Cinemachine.CinemachineBrain>(mainCam.gameObject);
+                }
+            }
+
+            // 3. Eliminar cámaras virtuales previas si existen
+            var oldOts = GameObject.Find("CM_OTS_Camera");
+            if (oldOts != null) Undo.DestroyObjectImmediate(oldOts);
+
+            GameObject vcamGO = GameObject.Find("CM_FreeLook_Camera");
+            if (vcamGO == null)
+            {
+                vcamGO = new GameObject("CM_FreeLook_Camera");
+                Undo.RegisterCreatedObjectUndo(vcamGO, "Create CM_FreeLook_Camera");
+            }
+
+            var cmCamera = vcamGO.GetComponent<Unity.Cinemachine.CinemachineCamera>();
+            if (cmCamera == null)
+            {
+                cmCamera = Undo.AddComponent<Unity.Cinemachine.CinemachineCamera>(vcamGO);
+            }
+
+            Transform target = model != null ? model : player.transform;
+            Undo.RecordObject(cmCamera, "Configure FreeLook Targets");
+            cmCamera.Follow = target;
+            cmCamera.LookAt = target;
+
+            // 4. Orbital Follow
+            var orbital = vcamGO.GetComponent<Unity.Cinemachine.CinemachineOrbitalFollow>();
+            if (orbital == null)
+            {
+                orbital = Undo.AddComponent<Unity.Cinemachine.CinemachineOrbitalFollow>(vcamGO);
+            }
+
+            Undo.RecordObject(orbital, "Configure Orbital Follow");
+            orbital.Radius = 3.4f;
+            orbital.TargetOffset = new Vector3(0f, 2.2f, 0f);
+            orbital.VerticalAxis.Value = 12f;
+
+            // 5. Rotation Composer
+            var rotComp = vcamGO.GetComponent<Unity.Cinemachine.CinemachineRotationComposer>();
+            if (rotComp == null)
+            {
+                rotComp = Undo.AddComponent<Unity.Cinemachine.CinemachineRotationComposer>(vcamGO);
+            }
+
+            Undo.RecordObject(rotComp, "Configure Rotation Composer");
+            rotComp.TargetOffset = new Vector3(0f, 2.2f, 0f);
+            rotComp.Damping = new Vector2(0.15f, 0.15f);
+            var comp = rotComp.Composition;
+            comp.ScreenPosition = new Vector2(-0.08f, 0.0f);
+            comp.DeadZone.Size = new Vector2(0.08f, 0.08f);
+            rotComp.Composition = comp;
+
+            // 6. FreeLook Modifier
+            var flMod = vcamGO.GetComponent<Unity.Cinemachine.CinemachineFreeLookModifier>();
+            if (flMod == null)
+            {
+                flMod = Undo.AddComponent<Unity.Cinemachine.CinemachineFreeLookModifier>(vcamGO);
+            }
+
+            // 7. Input Axis Controller configurado para Mouse X y Mouse Y
+            var inputCtrl = vcamGO.GetComponent<Unity.Cinemachine.CinemachineInputAxisController>();
+            if (inputCtrl == null)
+            {
+                inputCtrl = Undo.AddComponent<Unity.Cinemachine.CinemachineInputAxisController>(vcamGO);
+            }
+
+            string inputPath = "Packages/com.unity.cinemachine/Runtime/Input/CinemachineDefaultInputActions.inputactions";
+            var allAssets = AssetDatabase.LoadAllAssetsAtPath(inputPath);
+            UnityEngine.InputSystem.InputActionReference lookRef = null;
+            UnityEngine.InputSystem.InputActionReference zoomRef = null;
+
+            foreach (var a in allAssets)
+            {
+                if (a is UnityEngine.InputSystem.InputActionReference iar)
+                {
+                    if (iar.name.Contains("Look") && lookRef == null) lookRef = iar;
+                    if (iar.name.Contains("Zoom") && zoomRef == null) zoomRef = iar;
+                }
+            }
+
+            Undo.RecordObject(inputCtrl, "Configure Mouse Input Axes");
+            for (int i = 0; i < inputCtrl.Controllers.Count; i++)
+            {
+                var c = inputCtrl.Controllers[i];
+                if (c.Name.Contains("Look Orbit X"))
+                {
+                    c.Input.InputAction = lookRef;
+                    c.Input.Gain = 1.0f;
+                }
+                else if (c.Name.Contains("Look Orbit Y"))
+                {
+                    c.Input.InputAction = lookRef;
+                    c.Input.Gain = -1.0f;
+                }
+                else if (c.Name.Contains("Orbit Scale"))
+                {
+                    c.Input.InputAction = zoomRef;
+                    c.Input.Gain = 1.0f;
+                }
+                inputCtrl.Controllers[i] = c;
+            }
+
+            EditorSceneManager.MarkSceneDirty(player.scene);
+            Undo.CollapseUndoOperations(undoGroup);
+
+            Debug.Log("<color=green>[Unbreathe Setup] Cámara Orbital FreeLook configurada con éxito.</color>");
+        }
+
+        [MenuItem("Unbreathe/Configurar Camara OTS Cinemachine (Estilo The Last of Us)")]
+        public static void SetupCinemachineOTSCamera()
+        {
+            Undo.IncrementCurrentGroup();
+            int undoGroup = Undo.GetCurrentGroup();
+
+            Debug.Log("<color=cyan>[Unbreathe Setup] Configurando Cámara OTS Cinemachine estilo The Last of Us...</color>");
+
+            // 1. Obtener Player y Modelo
+            GameObject player = GameObject.Find("Player");
+            if (player == null)
+            {
+                Debug.LogWarning("[Unbreathe Setup] No se encontró el objeto 'Player'.");
+                return;
+            }
+
+            Transform model = player.transform.Find("Personaje@Getting Up");
+            if (model != null)
+            {
+                Undo.RecordObject(model, "Reset Model Position");
+                model.localPosition = Vector3.zero;
+
+                Animator anim = model.GetComponent<Animator>();
+                if (anim != null)
+                {
+                    Undo.RecordObject(anim, "Disable Apply Root Motion");
+                    anim.applyRootMotion = false;
+                }
+            }
+
+            // 2. Ajustar CharacterController según escala del modelo agrandado
+            CharacterController cc = player.GetComponent<CharacterController>();
+            if (cc != null)
+            {
+                Undo.RecordObject(cc, "Adjust CharacterController");
+                cc.height = 4.2f;
+                cc.radius = 0.7f;
+                cc.center = new Vector3(0f, 2.1f, 0f);
+                cc.skinWidth = 0.08f;
+                cc.stepOffset = 0.35f;
+                cc.slopeLimit = 45f;
+            }
+
+            // 3. Configurar Main Camera
+            Camera mainCam = Camera.main != null ? Camera.main : Object.FindFirstObjectByType<Camera>();
+            if (mainCam != null)
+            {
+                var oldFollow = mainCam.GetComponent<Unbreathe.Cameras.CameraFollow>();
+                if (oldFollow != null)
+                {
+                    Undo.RecordObject(oldFollow, "Disable legacy CameraFollow");
+                    oldFollow.enabled = false;
+                }
+
+                var brain = mainCam.GetComponent<Unity.Cinemachine.CinemachineBrain>();
+                if (brain == null)
+                {
+                    brain = Undo.AddComponent<Unity.Cinemachine.CinemachineBrain>(mainCam.gameObject);
+                }
+            }
+
+            // 4. Configurar Cámara Virtual OTS
+            GameObject vcamGO = GameObject.Find("CM_OTS_Camera");
+            if (vcamGO == null)
+            {
+                vcamGO = new GameObject("CM_OTS_Camera");
+                Undo.RegisterCreatedObjectUndo(vcamGO, "Create CM_OTS_Camera");
+            }
+
+            var cmCamera = vcamGO.GetComponent<Unity.Cinemachine.CinemachineCamera>();
+            if (cmCamera == null)
+            {
+                cmCamera = Undo.AddComponent<Unity.Cinemachine.CinemachineCamera>(vcamGO);
+            }
+
+            Transform targetTransform = null;
+            if (model != null)
+            {
+                targetTransform = model.Find("mixamorig:Hips/mixamorig:Spine/mixamorig:Spine1/mixamorig:Spine2");
+            }
+            if (targetTransform == null) targetTransform = player.transform;
+
+            Undo.RecordObject(cmCamera, "Configure CinemachineCamera Targets");
+            cmCamera.Follow = targetTransform;
+            cmCamera.LookAt = targetTransform;
+
+            // 3rd Person Follow
+            var tpFollow = vcamGO.GetComponent<Unity.Cinemachine.CinemachineThirdPersonFollow>();
+            if (tpFollow == null)
+            {
+                tpFollow = Undo.AddComponent<Unity.Cinemachine.CinemachineThirdPersonFollow>(vcamGO);
+            }
+
+            Undo.RecordObject(tpFollow, "Configure 3rd Person Follow");
+            tpFollow.CameraDistance = 4.2f;
+            tpFollow.ShoulderOffset = new Vector3(0.9f, 0.35f, 0f);
+            tpFollow.CameraSide = 1.0f; // Hombro derecho
+            tpFollow.VerticalArmLength = 0.4f;
+            tpFollow.Damping = new Vector3(0.1f, 0.2f, 0.3f);
+
+            // Rotation Composer (Encuadre TLOU: personaje a la izquierda de la pantalla)
+            var rotComp = vcamGO.GetComponent<Unity.Cinemachine.CinemachineRotationComposer>();
+            if (rotComp == null)
+            {
+                rotComp = Undo.AddComponent<Unity.Cinemachine.CinemachineRotationComposer>(vcamGO);
+            }
+
+            Undo.RecordObject(rotComp, "Configure Rotation Composer Framing");
+            var comp = rotComp.Composition;
+            comp.ScreenPosition = new Vector2(-0.22f, 0.08f);
+            comp.DeadZone.Size = new Vector2(0.05f, 0.05f);
+            rotComp.Composition = comp;
+            rotComp.Damping = new Vector2(0.2f, 0.2f);
+
+            // Input Axis Controller
+            var inputCtrl = vcamGO.GetComponent<Unity.Cinemachine.CinemachineInputAxisController>();
+            if (inputCtrl == null)
+            {
+                inputCtrl = Undo.AddComponent<Unity.Cinemachine.CinemachineInputAxisController>(vcamGO);
+            }
+
+            EditorSceneManager.MarkSceneDirty(player.scene);
+            Undo.CollapseUndoOperations(undoGroup);
+
+            Debug.Log("<color=green>[Unbreathe Setup] Cámara OTS Cinemachine (Estilo The Last of Us) configurada con éxito.</color>");
+        }
+
+        [MenuItem("Unbreathe/Configurar Animador (Idle, Walk y Parametro Speed)")]
+        public static void SetupAnimatorTransitions()
+        {
+            string controllerPath = "Assets/Sprites/Personaje3D/Getting Up/Controller_Up.controller";
+            UnityEditor.Animations.AnimatorController controller = AssetDatabase.LoadAssetAtPath<UnityEditor.Animations.AnimatorController>(controllerPath);
+
+            if (controller == null)
+            {
+                Debug.LogWarning("[Unbreathe Setup] No se encontró Controller_Up.controller en " + controllerPath);
+                return;
+            }
+
+            Undo.RecordObject(controller, "Setup Animator Transitions");
+
+            // 1. Asegurar parámetro Float 'Speed'
+            bool hasSpeedParam = false;
+            foreach (var p in controller.parameters)
+            {
+                if (p.name == "Speed" && p.type == UnityEngine.AnimatorControllerParameterType.Float)
+                {
+                    hasSpeedParam = true;
+                    break;
+                }
+            }
+
+            if (!hasSpeedParam)
+            {
+                controller.AddParameter("Speed", UnityEngine.AnimatorControllerParameterType.Float);
+                Debug.Log("<color=green>[Unbreathe Setup] Añadido parámetro Float 'Speed' al AnimatorController.</color>");
+            }
+
+            // 2. Cargar AnimationClips
+            AnimationClip idleClip = LoadClipFromFbx("Assets/Sprites/Personaje3D/Idle/Personaje@Idle.fbx");
+            AnimationClip walkClip = LoadClipFromFbx("Assets/Sprites/Personaje3D/Walk/Personaje@Walking.fbx");
+
+            var stateMachine = controller.layers[0].stateMachine;
+
+            // Buscar o crear estados Idle y Walk
+            UnityEditor.Animations.AnimatorState idleState = null;
+            UnityEditor.Animations.AnimatorState walkState = null;
+            UnityEditor.Animations.AnimatorState gettingUpState = null;
+
+            foreach (var childState in stateMachine.states)
+            {
+                if (childState.state.name == "Idle") idleState = childState.state;
+                else if (childState.state.name == "Walk" || childState.state.name == "Walking") walkState = childState.state;
+                else if (childState.state.name == "Getting Up") gettingUpState = childState.state;
+            }
+
+            if (idleState == null)
+            {
+                idleState = stateMachine.AddState("Idle", new Vector3(300, 200, 0));
+                idleState.motion = idleClip;
+            }
+            else if (idleClip != null && idleState.motion == null)
+            {
+                idleState.motion = idleClip;
+            }
+
+            if (walkState == null)
+            {
+                walkState = stateMachine.AddState("Walk", new Vector3(300, 300, 0));
+                walkState.motion = walkClip;
+            }
+            else if (walkClip != null && walkState.motion == null)
+            {
+                walkState.motion = walkClip;
+            }
+
+            // Si hay un estado Getting Up, hacer que transicione a Idle tras terminar
+            if (gettingUpState != null && idleState != null)
+            {
+                bool hasExitToIdle = false;
+                foreach (var t in gettingUpState.transitions)
+                {
+                    if (t.destinationState == idleState) { hasExitToIdle = true; break; }
+                }
+
+                if (!hasExitToIdle)
+                {
+                    var trans = gettingUpState.AddTransition(idleState);
+                    trans.hasExitTime = true;
+                    trans.exitTime = 0.9f;
+                    trans.duration = 0.25f;
+                }
+            }
+
+            // Transición Idle -> Walk (Speed > 0.1)
+            bool hasIdleToWalk = false;
+            foreach (var t in idleState.transitions)
+            {
+                if (t.destinationState == walkState) { hasIdleToWalk = true; break; }
+            }
+
+            if (!hasIdleToWalk)
+            {
+                var t = idleState.AddTransition(walkState);
+                t.hasExitTime = false;
+                t.duration = 0.15f;
+                t.AddCondition(UnityEditor.Animations.AnimatorConditionMode.Greater, 0.1f, "Speed");
+            }
+
+            // Transición Walk -> Idle (Speed < 0.1)
+            bool hasWalkToIdle = false;
+            foreach (var t in walkState.transitions)
+            {
+                if (t.destinationState == idleState) { hasWalkToIdle = true; break; }
+            }
+
+            if (!hasWalkToIdle)
+            {
+                var t = walkState.AddTransition(idleState);
+                t.hasExitTime = false;
+                t.duration = 0.15f;
+                t.AddCondition(UnityEditor.Animations.AnimatorConditionMode.Less, 0.1f, "Speed");
+            }
+
+            EditorUtility.SetDirty(controller);
+            AssetDatabase.SaveAssets();
+
+            Debug.Log("<color=green>[Unbreathe Setup] ¡Transiciones Idle <-> Walk configuradas con éxito en Controller_Up!</color>");
+        }
+
+        private static AnimationClip LoadClipFromFbx(string path)
+        {
+            foreach (var asset in AssetDatabase.LoadAllAssetsAtPath(path))
+            {
+                if (asset is AnimationClip clip && !clip.name.StartsWith("__preview__"))
+                {
+                    return clip;
+                }
+            }
+            return null;
+        }
+
         private static void SetupCityColliders()
         {
             // Buscar las partes de la ciudad donde están las calles y aceras

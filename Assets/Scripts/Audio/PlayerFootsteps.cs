@@ -10,7 +10,6 @@ namespace Unbreathe.Audio
     /// - Prohibido GetComponent() o Find() en Update().
     /// - Soporta clips de audio personalizados y genera un sonido sutil procedimental si no hay clips asignados.
     /// </summary>
-    [RequireComponent(typeof(PlayerMovementController))]
     [RequireComponent(typeof(AudioSource))]
     [DisallowMultipleComponent]
     public class PlayerFootsteps : MonoBehaviour
@@ -31,6 +30,7 @@ namespace Unbreathe.Audio
 
         // Referencias cacheadas en Awake()
         private PlayerMovementController movementController;
+        private PlayerController3D playerController3D;
         private AudioSource audioSource;
 
         private float stepTimer = 0f;
@@ -40,6 +40,7 @@ namespace Unbreathe.Audio
         {
             // Regla AGENTS.md: Almacenar referencias en caché en Awake()
             movementController = GetComponent<PlayerMovementController>();
+            playerController3D = GetComponent<PlayerController3D>();
             audioSource = GetComponent<AudioSource>();
 
             audioSource.playOnAwake = false;
@@ -51,10 +52,15 @@ namespace Unbreathe.Audio
 
         private void Update()
         {
-            if (movementController == null || audioSource == null) return;
+            if (audioSource == null) return;
+
+            bool isMoving = (playerController3D != null && playerController3D.IsMoving) ||
+                            (movementController != null && movementController.IsMoving);
+            bool isGrounded = (playerController3D != null && playerController3D.IsGrounded) ||
+                              (movementController != null && movementController.IsGrounded);
 
             // Verificar si el personaje está en movimiento en el suelo
-            if (movementController.IsMoving && movementController.IsGrounded)
+            if (isMoving && isGrounded)
             {
                 stepTimer += Time.deltaTime;
 
