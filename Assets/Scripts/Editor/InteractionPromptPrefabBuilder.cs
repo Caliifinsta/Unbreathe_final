@@ -3,6 +3,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 using Unbreathe.Interaction;
+using Unbreathe.UI;
 
 namespace Unbreathe.EditorTools
 {
@@ -16,9 +17,6 @@ namespace Unbreathe.EditorTools
     {
         private const string CarpetaResources = "Assets/Resources";
         private const string RutaPrefab = "Assets/Resources/InteractionPrompt.prefab";
-
-        private static readonly Color ColorFondo = new Color(0f, 0f, 0f, 0.55f);
-        private static readonly Color ColorTexto = new Color(0.92f, 0.92f, 0.92f, 1f);
 
         [MenuItem("Unbreathe/Interaccion/Crear InteractionPrompt Prefab")]
         public static void CrearPrefab()
@@ -94,8 +92,13 @@ namespace Unbreathe.EditorTools
             rtAviso.sizeDelta = Vector2.zero;
 
             Image fondo = aviso.AddComponent<Image>();
-            fondo.color = ColorFondo;
+            fondo.color = UnbreatheUITheme.ColorPanel;
             fondo.raycastTarget = false;
+
+            // Borde cian fino: define la forma del aviso aunque el fondo de la escena sea claro u oscuro
+            Outline borde = aviso.AddComponent<Outline>();
+            borde.effectColor = UnbreatheUITheme.ColorAcento;
+            borde.effectDistance = new Vector2(UnbreatheUITheme.GrosorBordeBoton, -UnbreatheUITheme.GrosorBordeBoton);
 
             CanvasGroup grupo = aviso.AddComponent<CanvasGroup>();
             grupo.alpha = 0f;
@@ -118,14 +121,18 @@ namespace Unbreathe.EditorTools
             GameObject textoGo = CrearUI("Texto", aviso.transform);
             TextMeshProUGUI texto = textoGo.AddComponent<TextMeshProUGUI>();
             texto.text = "[E] Interactuar";
-            texto.fontSize = 32f;
+            texto.fontSize = UnbreatheUITheme.TamanoAviso;
             texto.alignment = TextAlignmentOptions.Center;
-            texto.color = ColorTexto;
+            texto.color = UnbreatheUITheme.ColorTexto;
             texto.raycastTarget = false;
             if (TMP_Settings.defaultFontAsset != null)
             {
                 texto.font = TMP_Settings.defaultFontAsset;
             }
+
+            // Contorno oscuro del texto (se aplica en Play)
+            UITextOutline contorno = textoGo.AddComponent<UITextOutline>();
+            contorno.Configurar(UnbreatheUITheme.GrosorContornoTexto, UnbreatheUITheme.ColorContornoTexto);
 
             // Conectar referencias serializadas (campos privados) de InteractionPromptView
             SerializedObject so = new SerializedObject(vista);

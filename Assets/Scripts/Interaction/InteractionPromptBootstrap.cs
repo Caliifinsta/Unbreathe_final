@@ -15,8 +15,8 @@ namespace Unbreathe.Interaction
     {
         private const string RutaPrefabEnResources = "InteractionPrompt";
 
-        // Mensajes temporales de diagnóstico en la Console. Poner en false cuando todo funcione.
-        private const bool Diagnostico = true;
+        // Mensajes de diagnóstico en la Console. Poner en true solo para depurar.
+        private const bool Diagnostico = false;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Inicializar()

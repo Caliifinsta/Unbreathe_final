@@ -7,8 +7,10 @@ using Unbreathe.UI;
 namespace Unbreathe.EditorTools
 {
     /// <summary>
-    /// Genera Assets/Resources/PauseMenu.prefab con el Canvas, el panel y los 4 botones
-    /// (Continuar, Reiniciar, Menú principal, Salir) ya conectados a MenuPausa.
+    /// Genera Assets/Resources/PauseMenu.prefab con el estilo común de UNBREATHE (UnbreatheUITheme):
+    /// una tarjeta azul marino con borde cian detrás del título y los 4 botones
+    /// (Continuar, Reiniciar, Menú principal, Salir) ya conectados a MenuPausa, más el recordatorio
+    /// "ESC para continuar". La tarjeta hace que el menú se lea igual sobre cualquier escena.
     /// Uso: menú Unbreathe > Pausa > Crear PauseMenu Prefab.
     /// No abre ni modifica ninguna escena.
     /// </summary>
@@ -16,12 +18,6 @@ namespace Unbreathe.EditorTools
     {
         private const string CarpetaResources = "Assets/Resources";
         private const string RutaPrefab = "Assets/Resources/PauseMenu.prefab";
-
-        private static readonly Color ColorFondo = new Color(0f, 0f, 0f, 0.78f);
-        private static readonly Color ColorTexto = new Color(0.92f, 0.92f, 0.92f, 1f);
-        private static readonly Color ColorBoton = new Color(0.10f, 0.10f, 0.12f, 0.95f);
-        private static readonly Color ColorBotonResaltado = new Color(0.24f, 0.24f, 0.30f, 1f);
-        private static readonly Color ColorBotonPresionado = new Color(0.38f, 0.38f, 0.45f, 1f);
 
         [MenuItem("Unbreathe/Pausa/Crear PauseMenu Prefab")]
         public static void CrearPrefab()
@@ -36,7 +32,8 @@ namespace Unbreathe.EditorTools
                 bool sobrescribir = EditorUtility.DisplayDialog(
                     "PauseMenu ya existe",
                     "Ya existe Assets/Resources/PauseMenu.prefab.\n\n" +
-                    "Si lo sobrescribes se pierden los cambios manuales (por ejemplo, el sonido de clic que hayas asignado).",
+                    "Si lo sobrescribes se pierden los cambios manuales (por ejemplo, el sonido de clic que hayas asignado).\n\n" +
+                    "Cierra el prefab si lo tienes abierto en modo edición antes de continuar.",
                     "Sobrescribir",
                     "Cancelar");
 
@@ -98,36 +95,46 @@ namespace Unbreathe.EditorTools
 
             MenuPausa menu = raiz.AddComponent<MenuPausa>();
 
-            // Panel que oscurece toda la pantalla
+            // Panel de pantalla completa: solo oscurece la escena
             GameObject panel = CrearUI("Panel_Pausa", raiz.transform);
             Estirar(panel.GetComponent<RectTransform>());
-            Image fondo = panel.AddComponent<Image>();
-            fondo.color = ColorFondo;
+            Image atenuador = panel.AddComponent<Image>();
+            atenuador.color = UnbreatheUITheme.ColorAtenuador;
 
-            // Contenedor central con layout vertical
-            GameObject contenedor = CrearUI("Contenedor", panel.transform);
-            RectTransform rtContenedor = contenedor.GetComponent<RectTransform>();
-            rtContenedor.anchorMin = new Vector2(0.5f, 0.5f);
-            rtContenedor.anchorMax = new Vector2(0.5f, 0.5f);
-            rtContenedor.pivot = new Vector2(0.5f, 0.5f);
-            rtContenedor.anchoredPosition = Vector2.zero;
-            rtContenedor.sizeDelta = new Vector2(560f, 620f);
+            // Tarjeta central: fondo azul marino con borde cian; se ajusta sola al contenido
+            GameObject tarjeta = CrearUI("Tarjeta", panel.transform);
+            RectTransform rtTarjeta = tarjeta.GetComponent<RectTransform>();
+            rtTarjeta.anchorMin = new Vector2(0.5f, 0.5f);
+            rtTarjeta.anchorMax = new Vector2(0.5f, 0.5f);
+            rtTarjeta.pivot = new Vector2(0.5f, 0.5f);
+            rtTarjeta.anchoredPosition = Vector2.zero;
+            rtTarjeta.sizeDelta = new Vector2(620f, 0f);
 
-            VerticalLayoutGroup layout = contenedor.AddComponent<VerticalLayoutGroup>();
+            Image fondoTarjeta = tarjeta.AddComponent<Image>();
+            fondoTarjeta.color = UnbreatheUITheme.ColorPanel;
+            AgregarBorde(tarjeta);
+
+            VerticalLayoutGroup layout = tarjeta.AddComponent<VerticalLayoutGroup>();
             layout.spacing = 20f;
-            layout.padding = new RectOffset(40, 40, 30, 30);
+            layout.padding = new RectOffset(50, 50, 40, 40);
             layout.childAlignment = TextAnchor.UpperCenter;
             layout.childControlWidth = true;
             layout.childControlHeight = true;
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
 
-            CrearTexto("Titulo", contenedor.transform, "PAUSA", 64f, 110f, true);
+            ContentSizeFitter ajustador = tarjeta.AddComponent<ContentSizeFitter>();
+            ajustador.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            ajustador.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            Button botonContinuar = CrearBoton("Boton_Continuar", contenedor.transform, "CONTINUAR");
-            Button botonReiniciar = CrearBoton("Boton_Reiniciar", contenedor.transform, "REINICIAR");
-            Button botonMenuPrincipal = CrearBoton("Boton_MenuPrincipal", contenedor.transform, "MENÚ PRINCIPAL");
-            Button botonSalir = CrearBoton("Boton_Salir", contenedor.transform, "SALIR");
+            CrearTexto("Titulo", tarjeta.transform, "PAUSA", UnbreatheUITheme.TamanoTituloPantalla, 110f, true, UnbreatheUITheme.ColorAcento);
+
+            Button botonContinuar = CrearBoton("Boton_Continuar", tarjeta.transform, "CONTINUAR");
+            Button botonReiniciar = CrearBoton("Boton_Reiniciar", tarjeta.transform, "REINICIAR");
+            Button botonMenuPrincipal = CrearBoton("Boton_MenuPrincipal", tarjeta.transform, "MENÚ PRINCIPAL");
+            Button botonSalir = CrearBoton("Boton_Salir", tarjeta.transform, "SALIR");
+
+            CrearTexto("Recordatorio", tarjeta.transform, "ESC para continuar", UnbreatheUITheme.TamanoMinimo, 50f, true, UnbreatheUITheme.ColorTextoSecundario);
 
             // Conectar las referencias serializadas (campos privados) de MenuPausa
             SerializedObject so = new SerializedObject(menu);
@@ -164,7 +171,14 @@ namespace Unbreathe.EditorTools
             rt.offsetMax = Vector2.zero;
         }
 
-        private static TextMeshProUGUI CrearTexto(string nombre, Transform padre, string contenido, float tamano, float alto, bool conLayout)
+        private static void AgregarBorde(GameObject objetivo)
+        {
+            Outline borde = objetivo.AddComponent<Outline>();
+            borde.effectColor = UnbreatheUITheme.ColorAcento;
+            borde.effectDistance = new Vector2(UnbreatheUITheme.GrosorBordeBoton, -UnbreatheUITheme.GrosorBordeBoton);
+        }
+
+        private static TextMeshProUGUI CrearTexto(string nombre, Transform padre, string contenido, float tamano, float alto, bool conLayout, Color color)
         {
             GameObject go = CrearUI(nombre, padre);
 
@@ -172,12 +186,16 @@ namespace Unbreathe.EditorTools
             tmp.text = contenido;
             tmp.fontSize = tamano;
             tmp.alignment = TextAlignmentOptions.Center;
-            tmp.color = ColorTexto;
+            tmp.color = color;
             tmp.raycastTarget = false;
             if (TMP_Settings.defaultFontAsset != null)
             {
                 tmp.font = TMP_Settings.defaultFontAsset;
             }
+
+            // Contorno oscuro del texto (se aplica en Play)
+            UITextOutline contorno = go.AddComponent<UITextOutline>();
+            contorno.Configurar(UnbreatheUITheme.GrosorContornoTexto, UnbreatheUITheme.ColorContornoTexto);
 
             if (conLayout)
             {
@@ -200,20 +218,22 @@ namespace Unbreathe.EditorTools
             boton.targetGraphic = imagen;
 
             ColorBlock colores = boton.colors;
-            colores.normalColor = ColorBoton;
-            colores.highlightedColor = ColorBotonResaltado;
-            colores.pressedColor = ColorBotonPresionado;
-            colores.selectedColor = ColorBoton;
-            colores.disabledColor = new Color(0.2f, 0.2f, 0.2f, 0.5f);
+            colores.normalColor = UnbreatheUITheme.ColorBoton;
+            colores.highlightedColor = UnbreatheUITheme.ColorBotonHover;
+            colores.pressedColor = UnbreatheUITheme.ColorBotonPresionado;
+            colores.selectedColor = UnbreatheUITheme.ColorBoton;
+            colores.disabledColor = UnbreatheUITheme.ColorBotonDeshabilitado;
             colores.colorMultiplier = 1f;
             colores.fadeDuration = 0.1f;
             boton.colors = colores;
+
+            AgregarBorde(go);
 
             LayoutElement elemento = go.AddComponent<LayoutElement>();
             elemento.minHeight = 80f;
             elemento.preferredHeight = 80f;
 
-            TextMeshProUGUI texto = CrearTexto("Texto", go.transform, etiqueta, 34f, 0f, false);
+            TextMeshProUGUI texto = CrearTexto("Texto", go.transform, etiqueta, UnbreatheUITheme.TamanoBoton, 0f, false, UnbreatheUITheme.ColorTexto);
             Estirar(texto.rectTransform);
 
             return boton;

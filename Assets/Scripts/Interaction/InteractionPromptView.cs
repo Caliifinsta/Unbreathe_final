@@ -40,8 +40,8 @@ namespace Unbreathe.Interaction
         [Header("Jugador (opcional: se autovincula en Start)")]
         [SerializeField] private PlayerInteraction playerInteraction;
 
-        // Mensajes temporales de diagnóstico en la Console. Poner en false cuando todo funcione.
-        private const bool Diagnostico = true;
+        // Mensajes de diagnóstico en la Console. Poner en true solo para depurar.
+        private const bool Diagnostico = false;
 
         private const int TamanoBuffer = 64;
 

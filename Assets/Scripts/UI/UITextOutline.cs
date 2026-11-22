@@ -26,7 +26,8 @@ namespace Unbreathe.UI
             grosor = nuevoGrosor;
             color = nuevoColor;
 
-            if (isActiveAndEnabled)
+            // En el Editor (al generar prefabs) solo se guardan los valores; el contorno se aplica en Play.
+            if (Application.isPlaying && isActiveAndEnabled)
             {
                 Programar();
             }

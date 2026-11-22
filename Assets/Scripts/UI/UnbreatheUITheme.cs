@@ -32,6 +32,9 @@ namespace Unbreathe.UI
         /// <summary>Texto principal.</summary>
         public static readonly Color ColorTexto = Color.white;
 
+        /// <summary>Texto secundario (recordatorios, pistas): azul grisáceo claro, buen contraste sobre el panel.</summary>
+        public static readonly Color ColorTextoSecundario = new Color(0.78f, 0.84f, 0.90f, 1.00f);
+
         /// <summary>Pista de las barras (sliders): más clara que el panel para que se note.</summary>
         public static readonly Color ColorPista = new Color(0.180f, 0.220f, 0.310f, 1.000f);
 
@@ -51,9 +54,14 @@ namespace Unbreathe.UI
         public const bool BordeEnBanners = true;
 
         // ---------------- Tamaños de texto (1920x1080) ----------------
+        /// <summary>Título de pantalla completa (por ejemplo "PAUSA"); los paneles usan TamanoTitulo.</summary>
+        public const float TamanoTituloPantalla = 64f;
         public const float TamanoTitulo = 48f;
         public const float TamanoBoton = 36f;
         public const float TamanoTexto = 30f;
         public const float TamanoMinimo = 26f;
+
+        /// <summary>Aviso de interacción en pantalla ("[E] Entrar al edificio").</summary>
+        public const float TamanoAviso = 32f;
     }
 }
