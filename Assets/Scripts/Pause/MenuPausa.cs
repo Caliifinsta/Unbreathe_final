@@ -90,6 +90,7 @@ namespace Unbreathe.UI
         {
             if (Keyboard.current == null) return;
             if (!Keyboard.current.escapeKey.wasPressedThisFrame) return;
+            if (cargandoEscena) return; // ya se está cambiando de escena: Esc no hace nada
 
             if (estaPausado)
             {
@@ -139,6 +140,7 @@ namespace Unbreathe.UI
         private bool PuedePausar()
         {
             if (cargandoEscena) return false;
+            if (ScreenFader.EstaTransicionando) return false; // no pausar durante un fundido
 
             // Solo lectura: no se modifica el sistema de diálogos.
             DialogueManager dialogos = DialogueManager.Instance;
@@ -216,6 +218,8 @@ namespace Unbreathe.UI
 
         private void OnContinuarClick()
         {
+            if (cargandoEscena) return;
+
             ReproducirClic();
             Reanudar();
         }
@@ -259,6 +263,16 @@ namespace Unbreathe.UI
             }
 
             cargandoEscena = true;
+
+            // Con ScreenFader: la pantalla se funde a negro y carga la escena. La pausa se mantiene
+            // durante el fundido (el fader usa tiempo sin escala) y OnDestroy() restaura timeScale,
+            // audio y cursor cuando la escena se descarga.
+            if (ScreenFader.CargarEscena(nombreEscena))
+            {
+                return;
+            }
+
+            // Sin ScreenFader (prefab faltante o transición en curso): carga directa, como antes.
             RestaurarEstadoGlobal(); // timeScale, audio y cursor son estáticos: sobreviven al cambio de escena
             SceneManager.LoadScene(nombreEscena);
         }
