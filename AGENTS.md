@@ -46,6 +46,29 @@
 * **Interfaz de Opciones:** El slider de volumen incluye estructura estándar de Unity (`Fill Area`, `Fill`, `Handle`) y lectura de porcentaje en tiempo real.
 * **Flujo de Inicio:** Fade-in de botones sobre `Menu.jpeg` ➔ Prólogo interactivo con `InicioPlay.jpeg` ➔ Carga asíncrona de `Primer Plano`.
 
+### 3.6. Sistema de Cordura y Apariciones Psicológicas (`Unbreathe.Sanity`)
+* **Gestor de Cordura (`SanityManager`):** Rango de 0 a 100 (inicia en 100). Incluye decremento progresivo en el tiempo (`decayRate`), pausa durante diálogos y notas activas, y método público `RecoverSanity(float amount)` para eventos o recuerdos.
+* **Barra de Cordura HUD (`SanityBarUI`):** Canvas uGUI `Screen Space - Overlay` con `Canvas Scaler` a 1920x1080. Ubicado en la esquina superior izquierda con slider de relleno cian a rojo crítico y etiqueta en tiempo real `"Cordura XX%"`.
+* **Niebla Dinámica (`SanityFogController`):** Modula `RenderSettings.fogDensity` de `0.005` (lucidez) a `0.08` (angustia crítica) en modo `ExponentialSquared` con tonalidad gris frío oscuro conforme decrece la cordura.
+* **Maniquíes Observadores (`WatcherApparition`):** Figuras de tensión psicológica sin lógica de ataque ni daño. Rotan suavemente sobre el eje Y hacia el `Player` mientras ejecutan sus animaciones de *Idle* / *Crouch*. Implementan escalado suave al aparecer y desvanecerse.
+* **Generador Gradual (`ApparitionSpawner`):** Monitorea la cordura; al caer por debajo de 70 activa la congregación de figuras en un anillo de 4 a 9 metros (con prioridad en el cono frontal visible) apoyadas en el suelo mediante `UnityEngine.Physics.Raycast`. A mayor pérdida de cordura se acumulan más figuras (hasta 8-10 en nivel crítico); al recuperar cordura se retiran progresivamente.
+
+### 3.7. Cinemática de Inicio (`Unbreathe.Cutscenes.IntroCutsceneManager`)
+* **Canvas Cinematográfico (`IntroCutsceneCanvas`):** Canvas uGUI `Screen Space - Overlay` con sort order prioritario (100) y `Canvas Scaler` a 1920x1080. Contiene `FadePanel` (pantalla completa negra para fade-in de 2 segundos), `LetterboxGroup` (franjas negras superior e inferior de 105px) y `SubtitlePanel` con TextMeshPro.
+* **Flujo Narrativo:** Al iniciar `Primer Plano`, bloquea `PlayerController3D`, pausa el decremento de cordura y oculta el HUD de cordura. Karol ejecuta su animación inicial de levantarse (`Personaje@Getting Up`) mientras corre el monólogo interior con efecto máquina de escribir.
+* **Controles Cinemáticos:** Tecla 'Espacio' o Clic Izquierdo completa la frase actual o avanza a la siguiente; tecla 'Esc' salta la cinemática de inmediato. Al finalizar, desvanece suavemente el letterbox (1s), reactiva el movimiento del jugador y reanuda el sistema de cordura y su HUD.
+
+### 3.8. Indicador de Objetivos y Libreta Diegética (Fase 2)
+* **Indicador de Objetivos (`ObjectiveIndicator`):** Integrado en `SanityHUD`. Proyecta el objetivo 3D en pantalla (`WorldToScreenPoint`) con clamping en bordes (~55px) y orientación inversa si está fuera del cono visual. Muestra icono de diamante cian y distancia en metros (`XX m`). Se oculta automáticamente al estar a menos de 2.5m del objetivo o durante la cinemática de inicio. Método público: `SetObjective(Transform target, string text)`.
+* **Libreta en la Banca (`NotebookInteractable`):** Ubicada en `Magic Book` sobre la banca. Incorpora una `Point Light` cálida ámbar con pulso senoidal diegético y detección por proximidad (`Vector3.Distance <= 3.2m`). Al entrar en rango muestra el aviso flotante inferior `[E] Examinar libreta`. Al presionar 'E', desactiva temporalmente `PlayerController3D`, silencia la cordura y despliega el panel modal.
+* **Modal de Lectura (`NotebookPanelUI`):** Panel semitransparente oscuro de 2 páginas con TextMeshPro. Página 1 narra el prólogo íntimo de Karol; Página 2 instruye la búsqueda de recuerdos (0/3). Avance con [Espacio]/[E] y cierre con [Esc] o botón 'X'. Al cerrar, devuelve el control del jugador, reactiva el decremento de cordura, restaura +15 puntos de cordura de alivio y actualiza el objetivo a `"Objetivo: Explora la calle y busca tus recuerdos (0/3)"`.
+
+### 3.9. Álbum de Recuerdos y Flashbacks 2D (Fase 3 y 4)
+* **Datos de Recuerdos (`MemoryData`):** ScriptableObject con `memoryId`, `title`, `photo` (Sprite), `flashbackLines` y `sanityReward` (25 puntos por defecto). Ubicados en `Assets/Data/Memories` (`Memory_01_Telefono`, `Memory_02_Foto`, `Memory_03_Nota`).
+* **Puntos de Recolección (`MemoryPickup`):** 3 objetos en la calle (`MEMORY_PICKUPS`) con luz puntual senoidal suave y detección por distancia (`<= 3.0m`). Despliegan `[E] Recoger recuerdo`, registran el hallazgo en el álbum, se desactivan y lanzan el flashback.
+* **Álbum Polaroid (`MemoryAlbumManager` / `MemoryAlbumModal`):** Panel de 3 ranuras Polaroid en `SanityHUD`, accesible con `Tab` o `I` (pausa movimiento y cordura). Recuerdos bloqueados se muestran con "?" y marco oscuro; al desbloquearlos muestran su foto y título, y permiten reproducir nuevamente su memoria al hacer clic.
+* **Cinemática Flashback 2D (`MemoryFlashbackUI` / `FlashbackCanvas`):** Canvas de prioridad 110 con efecto Ken Burns (zoom suave 1.0 a 1.08) y máquina de escribir con avance por `Espacio`/Clic y salto por `Esc`. Al terminar por primera vez, recompensa +25 de cordura y actualiza el contador. Al completar los 3 recuerdos (3/3), actualiza `ObjectiveIndicator` hacia `Puerta_Transicion_SegundoPlano` con el texto `"Objetivo: Cruza la puerta hacia El Departamento"`.
+
 ---
 
 ## 4. ESTÁNDARES DE ESCENA E ILUMINACIÓN (UNITY 6 URP)
